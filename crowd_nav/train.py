@@ -73,7 +73,8 @@ def main():
     # configure environment
     env_config = configparser.RawConfigParser()
     env_config.read(args.env_config)
-    env = gym.make('CrowdSim-v0')
+    # env = gym.make('CrowdSim-v0')
+    env = gym.make('CrowdSim-v0', disable_env_checker=True)
     env.configure(env_config)
     robot = Robot(env_config, 'robot')
     env.set_robot(robot)

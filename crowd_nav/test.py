@@ -61,7 +61,9 @@ def main():
     # configure environment
     env_config = configparser.RawConfigParser()
     env_config.read(env_config_file)
-    env = gym.make('CrowdSim-v0')
+    env = gym.make('CrowdSim-v0', disable_env_checker=True)
+    env = env.unwrapped 
+    
     env.configure(env_config)
     if args.square:
         env.test_sim = 'square_crossing'
