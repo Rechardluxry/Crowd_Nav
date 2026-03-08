@@ -96,13 +96,16 @@ class ORCA(Policy):
             del self.sim
             self.sim = None
         if self.sim is None:
+            # 创建rvo2模拟器 https://github.com/sybrenstuvel/Python-RVO2/blob/main/src/rvo2.pyx
             self.sim = rvo2.PyRVOSimulator(self.time_step, *params, self.radius, self.max_speed)
+            # agent 0：机器人添加
             self.sim.addAgent(self_state.position, *params, self_state.radius + 0.01 + self.safety_space,
                               self_state.v_pref, self_state.velocity)
+            # agent 1..N：周围人群添加
             for human_state in state.human_states:
                 self.sim.addAgent(human_state.position, *params, human_state.radius + 0.01 + self.safety_space,
                                   self.max_speed, human_state.velocity)
-        else:
+        else: # 非首次：更新位置与速度，没有更新半径、偏好速度上限
             self.sim.setAgentPosition(0, self_state.position)
             self.sim.setAgentVelocity(0, self_state.velocity)
             for i, human_state in enumerate(state.human_states):
@@ -120,11 +123,14 @@ class ORCA(Policy):
         # perturb_vel = np.array((np.cos(perturb_angle), np.sin(perturb_angle))) * perturb_dist
         # pref_vel += perturb_vel
 
+        # agent 0：机器人速度
         self.sim.setAgentPrefVelocity(0, tuple(pref_vel))
+        # agent 1..N：人群速度
         for i, human_state in enumerate(state.human_states):
             # unknown goal position of other humans
             self.sim.setAgentPrefVelocity(i + 1, (0, 0))
-
+        # 运行一步 ORCA 并取机器人动作
+        # doStep() 会根据各 agent 的 preferred velocity 与碰撞约束求一个“无碰撞速度”，再更新速度状态。然后取 agent 0 的新速度作为机器人的动作输出。
         self.sim.doStep()
         action = ActionXY(*self.sim.getAgentVelocity(0))
         self.last_state = state

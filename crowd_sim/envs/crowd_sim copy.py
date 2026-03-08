@@ -390,27 +390,6 @@ class CrowdSim(gym.Env):
             done = False
             info = Nothing()
 
-        # density penalty ρ ：r=rbase​−λ*ρ
-
-        if not done:
-            density = 0
-            density_radius = 2.0
-            rx, ry = end_position[0], end_position[1]
-
-            for human in self.humans:
-                dx = human.px - rx
-                dy = human.py - ry
-                dist = np.sqrt(dx ** 2 + dy ** 2)
-                if dist < density_radius:
-                    density += 1
-
-            lambda_density = 0.05
-            reward -= lambda_density * density
-        else:
-            density = 0
-
-        info.density = density
-
         if update:
             # store state, action value and attention weights
             # 把当前时刻的完整状态存下来：机器人 1 个 full_state + 所有人 full_state 列表。
