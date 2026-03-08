@@ -366,36 +366,22 @@ class CrowdSim(gym.Env):
         end_position = np.array(self.robot.compute_position(action, self.time_step))
         reaching_goal = norm(end_position - np.array(self.robot.get_goal_position())) < self.robot.radius
 
-        # ===== density_v2: compute local density at next robot position =====
-        density = 0
-        density_radius = 2.0
-        rx, ry = end_position[0], end_position[1]
-
-        for human in self.humans:
-            dx = human.px - rx
-            dy = human.py - ry
-            dist = np.sqrt(dx ** 2 + dy ** 2)
-            if dist < density_radius:
-                density += 1
-
-        # normalize density to make reward scale milder
-        density_norm = density / max(len(self.humans), 1)
-        lambda_density = 0.01
-
-        # ===== base reward =====
+        # 计算奖励
         if self.global_time >= self.time_limit - 1:
             reward = 0
             done = True
             info = Timeout()
-        elif collision:  # collision penalty
+        elif collision: # 发生碰撞：惩罚
             reward = self.collision_penalty
             done = True
             info = Collision()
-        elif reaching_goal:  # success reward
+        elif reaching_goal: # 成功奖励
             reward = self.success_reward
             done = True
             info = ReachGoal()
-        elif dmin < self.discomfort_dist:  # discomfort penalty
+        elif dmin < self.discomfort_dist:  # 距离过近：不适惩罚
+            # only penalize agent for getting too close if it's visible
+            # adjust the reward based on FPS
             reward = (dmin - self.discomfort_dist) * self.discomfort_penalty_factor * self.time_step
             done = False
             info = Danger(dmin)
@@ -404,13 +390,26 @@ class CrowdSim(gym.Env):
             done = False
             info = Nothing()
 
-        # ===== density penalty: only apply on non-terminal states =====
-        if not done:
-            reward -= lambda_density * density_norm
+        # density penalty ρ ：r=rbase​−λ*ρ
 
-        # attach density info for logging / tensorboard
+        if not done:
+            density = 0
+            density_radius = 2.0
+            rx, ry = end_position[0], end_position[1]
+
+            for human in self.humans:
+                dx = human.px - rx
+                dy = human.py - ry
+                dist = np.sqrt(dx ** 2 + dy ** 2)
+                if dist < density_radius:
+                    density += 1
+
+            lambda_density = 0.05
+            reward -= lambda_density * density
+        else:
+            density = 0
+
         info.density = density
-        info.density_norm = density_norm
 
         if update:
             # store state, action value and attention weights
